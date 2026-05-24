@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>老人回忆小程序 Demo</title>
+  <style>
+    :root {
+      --page-bg: #edf1f5;
+      --phone-bg: #ffffff;
+      --soft-bg: #f5f7fa;
+      --text: #1f2328;
+      --muted: #667085;
+      --border: #d0d7de;
+      --accent: #2f80c4;
+      --accent-text: #ffffff;
+      --warning-bg: #fff7e6;
+      --warning-text: #7a4b00;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: var(--page-bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .phone {
+      width: min(430px, 100vw);
+      height: min(860px, 100vh);
+      background: var(--phone-bg);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .status {
+      height: 28px;
+      display: flex;
+      justify-content: center;
+      align-items: end;
+      color: var(--muted);
+      font-size: 12px;
+      padding-bottom: 4px;
+    }
+
+    .topbar {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .topbar-title {
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .link-button {
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      font-size: 15px;
+      font-weight: 700;
+      padding: 8px 0;
+      cursor: pointer;
+    }
+
+    .content {
+      flex: 1;
+      overflow: auto;
+      padding: 18px;
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      background: var(--soft-bg);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .white-card {
+      background: #ffffff;
+    }
+
+    h1, h2, h3, p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    h2 {
+      font-size: 20px;
+      line-height: 1.35;
+    }
+
+    h3 {
+      font-size: 17px;
+      line-height: 1.4;
+    }
+
+    p {
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .small {
+      font-size: 13px;
+    }
+
+    .button {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: var(--accent-text);
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 10px 14px;
+    }
+
+    .button.secondary {
+      border-color: #b8b8b8;
+      background: #e9e9e9;
+      color: var(--text);
+    }
+
+    .record-button {
+      width: 174px;
+      height: 174px;
+      border-radius: 999px;
+      align-self: center;
+      font-size: 22px;
+      margin: 10px 0;
+    }
+
+    .pill {
+      width: fit-content;
+      border-radius: 999px;
+      background: #eaf4fc;
+      color: #1e5b96;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 4px 10px;
+    }
+
+    .pill.warning {
+      background: var(--warning-bg);
+      color: var(--warning-text);
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .age-group {
+      margin-top: 4px;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .bottom-nav {
+      border-top: 1px solid var(--border);
+      padding: 10px 14px 14px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      background: #ffffff;
+    }
+
+    .nav-dot {
+      border: 1px solid var(--border);
+      background: #ffffff;
+      border-radius: 999px;
+      height: 34px;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .nav-dot.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 800;
+      background: #eaf4fc;
+    }
+
+    @media (max-height: 760px) {
+      body { align-items: flex-start; }
+      .phone { height: 100vh; border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <div class="status">9:41</div>
+    <header class="topbar">
+      <button id="backButton" class="link-button" type="button">返回</button>
+      <div class="topbar-title">老人回忆</div>
+      <button id="timelineButton" class="link-button" type="button">时间线</button>
+    </header>
+    <section id="content" class="content"></section>
+    <nav id="bottomNav" class="bottom-nav"></nav>
+  </main>
+
+  <script>
+    const flow = ["consent", "home", "confirm", "timeline", "share", "settings"];
+    const navLabels = {
+      consent: "授权",
+      home: "录音",
+      confirm: "确认",
+      timeline: "时间线",
+      share: "分享",
+      settings: "设置"
+    };
+
+    let currentPage = "home";
+    let continueContext = "";
+
+    function setPage(page) {
+      currentPage = page;
+      render();
+    }
+
+    function goNext() {
+      const index = flow.indexOf(currentPage);
+      setPage(flow[(index + 1) % flow.length]);
+    }
+
+    function goBack() {
+      const index = flow.indexOf(currentPage);
+      setPage(flow[(index - 1 + flow.length) % flow.length]);
+    }
+
+    function continueFrom(title) {
+      continueContext = title;
+      setPage("home");
+    }
+
+    function renderNav() {
+      document.getElementById("bottomNav").innerHTML = flow.map((page) => {
+        return `<button class="nav-dot ${page === currentPage ? "active" : ""}" onclick="setPage('${page}')">${navLabels[page]}</button>`;
+      }).join("");
+    }
+
+    function renderConsent() {
+      return `
+        <div class="stack">
+          <h1>开始前，先说明几件事</h1>
+          <div class="card stack">
+            <p>为了帮你保存回忆，产品会保存原始音频、转写文本、AI 整理草稿和分享记录。</p>
+            <p class="muted">MVP 默认不将你的数据用于模型训练。</p>
+          </div>
+          <button class="button" onclick="setPage('home')">同意并继续</button>
+          <button class="button secondary">暂不同意</button>
+        </div>
+      `;
+    }
+
+    function renderHome() {
+      return `
+        <div class="stack">
+          ${continueContext ? `
+            <div class="card stack">
+              <span class="pill">补充模式</span>
+              <h3>正在补充：${continueContext}</h3>
+              <p class="muted">接下来录的内容会关联到这个故事或片段。</p>
+            </div>
+          ` : ""}
+          <h1>想起什么，就先说下来</h1>
+          <p class="muted">随便说几句也可以，记不清的地方可以先放着。</p>
+          <button class="button record-button">按住说话</button>
+          <div class="card stack">
+            <h3>你刚才说：</h3>
+            <p class="muted">我想起老粮站旁边，父亲把白面让给邻居……</p>
+          </div>
+          <div class="card stack">
+            <h3>系统自动回复</h3>
+            <p>您说父亲把白面让给邻居，我还挺想听听当时是怎么回事的。</p>
+            <p>他当时是怎么跟邻居说的？您还记得那句话或者当时的样子吗？</p>
+            <button class="button">回答问题</button>
+            <button class="button secondary">继续说</button>
+          </div>
+          <button class="button" onclick="setPage('confirm')">生成故事草稿</button>
+          <button class="button secondary" onclick="setPage('timeline')">先保存，不整理</button>
+        </div>
+      `;
+    }
+
+    function renderConfirm() {
+      return `
+        <div class="stack">
+          <span class="pill warning">AI 整理草稿</span>
+          <h1>粮站旁边的一次让粮</h1>
+          <div class="card white-card">
+            <p>上世纪五十年代末，我在县城老粮站旁边见过一件事。那时候粮食紧张，父亲排队领粮，最后还是把一点白面让给了邻居。到现在想起来，我心里还是又心酸又佩服。</p>
+          </div>
+          <p class="muted">如果不满意，可以按住语音说修改意见，AI 会重新改这段草稿。</p>
+          <button class="button">确认保存</button>
+          <button class="button secondary">语音修改</button>
+        </div>
+      `;
+    }
+
+    function renderTimeline() {
+      return `
+        <div class="stack">
+          <h1>我的时间线</h1>
+          <p class="muted">按年龄每 20 年一组。日期想不起来时，AI 只用于归组，不写成确定事实。</p>
+          <div class="age-group">40-59岁</div>
+          <div class="card stack">
+            <h3>粮站旁边的一次让粮</h3>
+            <p class="muted">上世纪五十年代末 · 父亲 · 老粮站</p>
+            <button class="button secondary" onclick="continueFrom('粮站旁边的一次让粮')">继续补充</button>
+          </div>
+          <div class="card stack">
+            <h3>老屋后菜地的几句话</h3>
+            <p class="muted">已保存原始音频和转写。可以继续补充，也可以整理成故事。</p>
+            <button class="button secondary" onclick="continueFrom('老屋后菜地的几句话')">继续补充</button>
+            <button class="button" onclick="setPage('confirm')">整理成故事</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderShare() {
+      return `
+        <div class="stack">
+          <h1>分享这个故事</h1>
+          <div class="card stack">
+            <h3>分享给谁？</h3>
+            <button class="button">家人：女儿</button>
+            <button class="button secondary">复制授权链接</button>
+            <p class="muted">默认只分享整理后的故事，不分享原始音频。</p>
+          </div>
+          <button class="button">确认分享</button>
+          <button class="button secondary">取消</button>
+        </div>
+      `;
+    }
+
+    function renderSettings() {
+      return `
+        <div class="stack">
+          <h1>设置与数据管理</h1>
+          <button class="button secondary">查看保存的数据</button>
+          <button class="button secondary">撤回已分享内容</button>
+          <button class="button secondary">删除单条回忆</button>
+          <div class="card">
+            <p class="muted">MVP 默认不将用户数据用于模型训练。</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderContent() {
+      const renderers = {
+        consent: renderConsent,
+        home: renderHome,
+        confirm: renderConfirm,
+        timeline: renderTimeline,
+        share: renderShare,
+        settings: renderSettings
+      };
+      document.getElementById("content").innerHTML = renderers[currentPage]();
+    }
+
+    function render() {
+      document.getElementById("backButton").onclick = goBack;
+      document.getElementById("timelineButton").onclick = () => setPage("timeline");
+      renderContent();
+      renderNav();
+    }
+
+    render();
+  </script>
+</body>
+</html>
