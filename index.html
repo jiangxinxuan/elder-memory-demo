@@ -76,6 +76,11 @@
       cursor: pointer;
     }
 
+    .link-button:disabled {
+      color: #a0a7b1;
+      cursor: not-allowed;
+    }
+
     .content {
       flex: 1;
       overflow: auto;
@@ -150,6 +155,13 @@
       color: var(--text);
     }
 
+    .button:disabled {
+      border-color: #c8cdd3;
+      background: #d8dde3;
+      color: #77808b;
+      cursor: not-allowed;
+    }
+
     .record-button {
       width: 174px;
       height: 174px;
@@ -174,6 +186,82 @@
       color: var(--warning-text);
     }
 
+    .notice {
+      border: 1px solid #9ed5b2;
+      background: #eefbf2;
+      color: #25613a;
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .message {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .message-label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .step-text {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .pill.success {
+      background: #e7f6ed;
+      color: #1f7a3f;
+    }
+
+    .toast {
+      border: 1px solid #b8e0c4;
+      background: #eefaf2;
+      color: #1f7a3f;
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .story-text {
+      white-space: pre-wrap;
+    }
+
+    .recording {
+      background: #c0392b;
+      border-color: #c0392b;
+    }
+
+    .timeline-card {
+      position: relative;
+    }
+
+    .meta {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .checkbox-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .checkbox-row input {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+    }
+
     .row {
       display: flex;
       align-items: center;
@@ -184,6 +272,74 @@
       margin-top: 4px;
       font-size: 18px;
       font-weight: 800;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .field input,
+    .field textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #ffffff;
+      padding: 10px 12px;
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--text);
+      font-family: inherit;
+    }
+
+    .field textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .chat-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .chat-row {
+      display: flex;
+      width: 100%;
+    }
+
+    .chat-row.user {
+      justify-content: flex-end;
+    }
+
+    .chat-row.system {
+      justify-content: flex-start;
+    }
+
+    .chat-bubble {
+      max-width: 85%;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 15px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      border: 1px solid var(--border);
+    }
+
+    .chat-bubble.user {
+      background: #eaf4fc;
+      border-color: #b8d8f1;
+    }
+
+    .chat-bubble.system {
+      background: #f5f7fa;
     }
 
     .bottom-nav {
@@ -231,177 +387,301 @@
   </main>
 
   <script>
-    const flow = ["consent", "home", "confirm", "timeline", "share", "settings"];
+    const flow = ["home", "confirm", "timeline"];
     const navLabels = {
-      consent: "授权",
-      home: "录音",
+      home: "首页",
       confirm: "确认",
-      timeline: "时间线",
-      share: "分享",
-      settings: "设置"
+      timeline: "时间线"
     };
 
     let currentPage = "home";
-    let continueContext = "";
+    const state = {
+      notice: "",
+      draft: null,
+      timeline: [],
+      isSaving: false,
+      isRecording: false,
+      chatMessages: [],
+      elderProfile: {
+        name: "王桂兰"
+      },
+      form: {
+        memoryInput: ""
+      }
+    };
+
+    function showNotice(message) {
+      state.notice = message;
+    }
+
+    function clearNotice() {
+      state.notice = "";
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function canVisit(page) {
+      if (page === "confirm") return Boolean(state.draft);
+      if (page === "timeline") return state.timeline.length > 0;
+      return true;
+    }
 
     function setPage(page) {
+      if (!canVisit(page)) {
+        showNotice("请先在首页录入回忆内容并生成草稿。");
+        render();
+        return;
+      }
       currentPage = page;
       render();
     }
 
-    function goNext() {
-      const index = flow.indexOf(currentPage);
-      setPage(flow[(index + 1) % flow.length]);
+    function getPreviousPage() {
+      if (currentPage === "confirm") return "home";
+      if (currentPage === "timeline") {
+        if (state.draft && !state.timeline.some((item) => item.id === state.draft.id)) return "confirm";
+        return "home";
+      }
+      return "home";
     }
 
     function goBack() {
-      const index = flow.indexOf(currentPage);
-      setPage(flow[(index - 1 + flow.length) % flow.length]);
+      setPage(getPreviousPage());
     }
 
-    function continueFrom(title) {
-      continueContext = title;
+    function resetMemorySession() {
+      state.draft = null;
+      state.isRecording = false;
+      state.chatMessages = [];
+      state.form.memoryInput = "";
+    }
+
+    function startNewMemory() {
+      resetMemorySession();
+      clearNotice();
       setPage("home");
     }
 
-    function modifyDraft() {
-      continueContext = "修改：粮站旁边的一次让粮";
-      setPage("home");
+    function updateFormField(field, value) {
+      state.form[field] = value;
+    }
+
+    function toggleRecording() {
+      state.isRecording = !state.isRecording;
+      if (!state.isRecording && !state.form.memoryInput.trim()) {
+        state.form.memoryInput = "我想起老粮站旁边，父亲把白面让给邻居。";
+        showNotice("录音结束，已填入回忆内容示例，可以直接点击生成。");
+      }
+      render();
+    }
+
+    function generateDraft() {
+      const memoryInput = document.getElementById("memoryInput")?.value || "";
+      state.form.memoryInput = memoryInput;
+      const sentMemories = state.chatMessages
+        .filter((message) => message.role === "user")
+        .map((message) => message.text);
+
+      const normalizedName = state.elderProfile.name.trim() || "老人";
+      const normalizedMemory = sentMemories.join("；").trim();
+
+      if (!normalizedMemory) {
+        showNotice("请先发送回忆内容，再生成故事草稿。");
+        render();
+        return;
+      }
+
+      const trimmed = normalizedMemory.length > 18 ? `${normalizedMemory.slice(0, 18)}...` : normalizedMemory;
+      const title = `${normalizedName}的回忆：${trimmed}`;
+      const body = `${normalizedName}提到：${normalizedMemory}`;
+
+      state.draft = {
+        id: Date.now(),
+        elderName: normalizedName,
+        elderIdentity: "",
+        memoryInput: normalizedMemory,
+        title,
+        body,
+        createdAt: new Date().toLocaleString("zh-CN")
+      };
+
+      showNotice("草稿已生成，请确认后保存到时间线。");
+      setPage("confirm");
+    }
+
+    function sendMemory() {
+      const memoryInput = document.getElementById("memoryInput")?.value || "";
+      const normalizedMemory = memoryInput.trim();
+      state.form.memoryInput = memoryInput;
+      if (!normalizedMemory) {
+        showNotice("请先说点内容，再发送。");
+        render();
+        return;
+      }
+      state.chatMessages.push({
+        role: "user",
+        text: normalizedMemory
+      });
+      state.chatMessages.push({
+        role: "system",
+        text: "我先把这段回忆记下来了。你可以继续说下一段，我会一起整理成故事草稿。"
+      });
+      state.form.memoryInput = "";
+      clearNotice();
+      render();
+    }
+
+    function confirmSave() {
+      if (!state.draft) {
+        showNotice("没有可保存的草稿，请先生成。");
+        render();
+        return;
+      }
+
+      if (state.isSaving) return;
+      state.isSaving = true;
+
+      const hasSaved = state.timeline.some((item) => item.id === state.draft.id);
+      if (hasSaved) {
+        state.isSaving = false;
+        showNotice("该草稿已在时间线中，无需重复保存。");
+        setPage("timeline");
+        return;
+      }
+
+      state.timeline.unshift({ ...state.draft });
+      state.draft = null;
+      state.isSaving = false;
+      showNotice("已确认保存到时间线。");
+      setPage("timeline");
     }
 
     function renderNav() {
-      document.getElementById("bottomNav").innerHTML = flow.map((page) => {
-        return `<button class="nav-dot ${page === currentPage ? "active" : ""}" onclick="setPage('${page}')">${navLabels[page]}</button>`;
-      }).join("");
+      document.getElementById("bottomNav").innerHTML = flow
+        .map((page) => {
+          const disabled = canVisit(page) ? "" : "disabled";
+          return `<button class="nav-dot ${page === currentPage ? "active" : ""}" ${disabled} onclick="setPage('${page}')">${navLabels[page]}</button>`;
+        })
+        .join("");
     }
 
-    function renderConsent() {
-      return `
-        <div class="stack">
-          <h1>开始前，先说明几件事</h1>
-          <div class="card stack">
-            <p>为了帮你保存回忆，产品会保存原始音频、转写文本、AI 整理草稿和分享记录。</p>
-            <p class="muted">MVP 默认不将你的数据用于模型训练。</p>
-          </div>
-          <button class="button" onclick="setPage('home')">同意并继续</button>
-          <button class="button secondary">暂不同意</button>
-        </div>
-      `;
+    function renderNotice() {
+      return state.notice ? `<div class="notice">${escapeHtml(state.notice)}</div>` : "";
+    }
+
+    function renderStep() {
+      const labels = ["首页录入", "生成确认", "保存时间线"];
+      const stepIndex = Math.max(0, Math.min(flow.indexOf(currentPage), labels.length - 1));
+      return `<div class="step-text">V1.0 happy path：${labels.map((label, index) => (index === stepIndex ? `【${label}】` : label)).join(" → ")}</div>`;
     }
 
     function renderHome() {
-      const isModifyMode = continueContext.startsWith("修改：");
-      const contextTitle = isModifyMode ? continueContext.replace("修改：", "") : continueContext;
+      const chatList = state.chatMessages
+        .map(
+          (message) => `
+            <div class="chat-row ${message.role}">
+              <div class="chat-bubble ${message.role}">${escapeHtml(message.text)}</div>
+            </div>
+          `
+        )
+        .join("");
       return `
         <div class="stack">
-          ${continueContext ? `
-            <div class="card stack">
-              <span class="pill">${isModifyMode ? "修改模式" : "补充模式"}</span>
-              <h3>${isModifyMode ? "已提交修改意见" : "正在补充"}：${contextTitle}</h3>
-              <p class="muted">${isModifyMode ? "刚才在确认页按住说的修改意见已经发送到这里，系统会在对话流里承接并改稿。" : "接下来录的内容会关联到这个故事或片段。"}</p>
-            </div>
-          ` : ""}
+          ${renderStep()}
+          ${renderNotice()}
           <h1>想起什么，就先说下来</h1>
           <p class="muted">随便说几句也可以，记不清的地方可以先放着。</p>
-          <button class="button record-button">按住说话</button>
           <div class="card stack">
-            <h3>你刚才说：</h3>
-            <p class="muted">${isModifyMode ? "这段不要写得太夸张，父亲让粮这件事写得朴素一点。" : "我想起老粮站旁边，父亲把白面让给邻居……"}</p>
+            ${
+              chatList
+                ? `<div class="chat-stream">${chatList}</div>`
+                : ``
+            }
+            <button id="recordButton" class="button record-button ${state.isRecording ? "recording" : ""}" onclick="toggleRecording()">
+              ${state.isRecording ? "结束录音" : "按住说话"}
+            </button>
+            <div class="field">
+              <label for="memoryInput">输入并发送</label>
+              <textarea id="memoryInput" placeholder="例如：年轻时在粮站排队，父亲把白面让给邻居家。" oninput="updateFormField('memoryInput', this.value)">${escapeHtml(state.form.memoryInput)}</textarea>
+            </div>
+            <button class="button" onclick="sendMemory()">发送</button>
           </div>
-          <div class="card stack">
-            <h3>系统自动回复</h3>
-            ${isModifyMode ? `
-              <p>好的，我会把这段写得更朴素一些，不替您加太多情绪。</p>
-              <p>如果还有哪句话想改，您可以继续说；也可以先看修改后的草稿。</p>
-              <button class="button" onclick="setPage('confirm')">查看修改后草稿</button>
-              <button class="button secondary">继续说修改意见</button>
-            ` : `
-              <p>您说父亲把白面让给邻居，我还挺想听听当时是怎么回事的。</p>
-              <p>他当时是怎么跟邻居说的？您还记得那句话或者当时的样子吗？</p>
-              <button class="button">回答问题</button>
-              <button class="button secondary">继续说</button>
-            `}
-          </div>
-          <button class="button" onclick="setPage('confirm')">生成故事草稿</button>
-          <button class="button secondary" onclick="setPage('timeline')">先保存，不整理</button>
+          <button class="button" onclick="generateDraft()">生成故事草稿</button>
+          <button class="button secondary" ${state.timeline.length > 0 ? "onclick=\"setPage('timeline')\"" : "disabled"}>先保存，不整理</button>
         </div>
       `;
     }
 
     function renderConfirm() {
+      const draft = state.draft;
+      if (!draft) {
+        return `
+          <div class="stack">
+            ${renderStep()}
+            ${renderNotice()}
+            <h1>暂无草稿</h1>
+            <button class="button" onclick="setPage('home')">返回首页填写</button>
+          </div>
+        `;
+      }
+
       return `
         <div class="stack">
+          ${renderStep()}
+          ${renderNotice()}
           <span class="pill warning">AI 整理草稿</span>
-          <h1>粮站旁边的一次让粮</h1>
-          <div class="card white-card">
-            <p>上世纪五十年代末，我在县城老粮站旁边见过一件事。那时候粮食紧张，父亲排队领粮，最后还是把一点白面让给了邻居。到现在想起来，我心里还是又心酸又佩服。</p>
+          <h1>${escapeHtml(draft.title)}</h1>
+          <div class="card white-card stack">
+            <p class="story-text">${escapeHtml(draft.body)}</p>
+            <p class="meta">生成时间：${escapeHtml(draft.createdAt)}</p>
           </div>
-          <p class="muted">如果不满意，在这里直接按住说修改意见；松手后语音会自动发送到录音对话流，AI 在对话里承接并改稿。</p>
-          <button class="button" onclick="setPage('timeline')">确认保存</button>
-          <button class="button secondary" onclick="modifyDraft()">按住说修改意见</button>
+          <p class="muted">如果不满意，可以返回上一页继续修改内容。</p>
+          <button class="button" ${state.isSaving ? "disabled" : ""} onclick="confirmSave()">${state.isSaving ? "保存中..." : "确认保存"}</button>
+          <button class="button secondary" onclick="goBack()">返回修改</button>
         </div>
       `;
     }
 
     function renderTimeline() {
+      const hasItems = state.timeline.length > 0;
       return `
         <div class="stack">
+          ${renderStep()}
+          ${renderNotice()}
           <h1>我的时间线</h1>
           <p class="muted">按年龄每 20 年一组。日期想不起来时，AI 只用于归组，不写成确定事实。</p>
-          <div class="age-group">40-59岁</div>
-          <div class="card stack">
-            <h3>粮站旁边的一次让粮</h3>
-            <p class="muted">上世纪五十年代末 · 父亲 · 老粮站</p>
-            <button class="button secondary" onclick="continueFrom('粮站旁边的一次让粮')">继续补充</button>
-          </div>
-          <div class="card stack">
-            <h3>老屋后菜地的几句话</h3>
-            <p class="muted">已保存原始音频和转写。可以继续补充，也可以整理成故事。</p>
-            <button class="button secondary" onclick="continueFrom('老屋后菜地的几句话')">继续补充</button>
-            <button class="button" onclick="setPage('confirm')">整理成故事</button>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderShare() {
-      return `
-        <div class="stack">
-          <h1>分享这个故事</h1>
-          <div class="card stack">
-            <h3>分享给谁？</h3>
-            <button class="button">家人：女儿</button>
-            <button class="button secondary">复制授权链接</button>
-            <p class="muted">默认只分享整理后的故事，不分享原始音频。</p>
-          </div>
-          <button class="button">确认分享</button>
-          <button class="button secondary">取消</button>
-        </div>
-      `;
-    }
-
-    function renderSettings() {
-      return `
-        <div class="stack">
-          <h1>设置与数据管理</h1>
-          <button class="button secondary">查看保存的数据</button>
-          <button class="button secondary">撤回已分享内容</button>
-          <button class="button secondary">删除单条回忆</button>
-          <div class="card">
-            <p class="muted">MVP 默认不将用户数据用于模型训练。</p>
-          </div>
+          ${
+            hasItems
+              ? state.timeline
+                  .map(
+                    (item) => `
+                      <div class="card stack">
+                        <h3>${escapeHtml(item.title)}</h3>
+                        <p class="story-text">${escapeHtml(item.body)}</p>
+                        <p class="meta">${escapeHtml(item.createdAt)}</p>
+                      </div>
+                    `
+                  )
+                  .join("")
+              : `<div class="card"><p class="muted">还没有内容。请先回到首页完成“输入 -> 生成 -> 确认保存”。</p></div>`
+          }
+          <button class="button secondary" onclick="startNewMemory()">继续新增回忆</button>
         </div>
       `;
     }
 
     function renderContent() {
       const renderers = {
-        consent: renderConsent,
         home: renderHome,
         confirm: renderConfirm,
-        timeline: renderTimeline,
-        share: renderShare,
-        settings: renderSettings
+        timeline: renderTimeline
       };
       document.getElementById("content").innerHTML = renderers[currentPage]();
     }
@@ -409,10 +689,18 @@
     function render() {
       document.getElementById("backButton").onclick = goBack;
       const topRightButton = document.getElementById("topRightButton");
-      topRightButton.textContent = currentPage === "timeline" ? "分享" : "时间线";
-      topRightButton.onclick = () => setPage(currentPage === "timeline" ? "share" : "timeline");
+      if (currentPage === "timeline") {
+        topRightButton.textContent = "新增回忆";
+        topRightButton.disabled = false;
+        topRightButton.onclick = startNewMemory;
+      } else {
+        topRightButton.textContent = "时间线";
+        topRightButton.disabled = false;
+        topRightButton.onclick = () => setPage("timeline");
+      }
       renderContent();
       renderNav();
+      clearNotice();
     }
 
     render();
